@@ -3,29 +3,30 @@ package com.mre.mariobros.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
-import com.badlogic.gdx.maps.MapObject;
-import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
-import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.Body;
-import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
-import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mre.mariobros.MarioBros;
 import com.mre.mariobros.scenes.Hud;
+import com.mre.mariobros.sprites.enemies.Enemy;
 import com.mre.mariobros.sprites.Mario;
+import com.mre.mariobros.sprites.items.Item;
+import com.mre.mariobros.sprites.items.ItemDef;
+import com.mre.mariobros.sprites.items.Mushroom;
 import com.mre.mariobros.tools.B2WorldCreator;
 import com.mre.mariobros.tools.WorldContactListener;
+
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class PlayScreen implements Screen {
 
@@ -41,8 +42,14 @@ public class PlayScreen implements Screen {
     private final OrthogonalTiledMapRenderer renderer;
 
     private final World world;
+    private final B2WorldCreator worldCreator;
     private final Box2DDebugRenderer b2dr;
     private final Mario player;
+
+    private Music music;
+
+    private Array<Item> items;
+    private LinkedBlockingQueue<ItemDef> itemsToSpawn;
 
     public PlayScreen(MarioBros game) {
         atlas = new TextureAtlas("Mario_and_Enemies.pack");
@@ -58,17 +65,46 @@ public class PlayScreen implements Screen {
         world = new World(new Vector2(0, -10), true);
         b2dr = new Box2DDebugRenderer();
 
-        new B2WorldCreator(world, map);
+        worldCreator = new B2WorldCreator(this);
 
-        player = new Mario(world, this);
+        player = new Mario(this);
 
         world.setContactListener(new WorldContactListener());
+
+        music = MarioBros.manager.get("audio/music/mario_music.ogg", Music.class);
+        music.setLooping(true);
+        music.setVolume(0.01f);
+        music.play();
+
+        items = new Array<Item>();
+        itemsToSpawn = new LinkedBlockingQueue<ItemDef>();
+    }
+
+    public void spawnItem(ItemDef e) {
+        itemsToSpawn.add(e);
+    }
+
+    public void handleSpawningItems() {
+        if (!itemsToSpawn.isEmpty()) {
+            ItemDef idef = itemsToSpawn.poll();
+            if (idef.type == Mushroom.class) {
+                items.add(new Mushroom(this, idef.position.x, idef.position.y));
+            }
+        }
     }
 
     public TextureAtlas getAtlas() {
         return atlas;
     }
-    
+
+    public TiledMap getMap() {
+        return map;
+    }
+
+    public World getWorld() {
+        return world;
+    }
+
     @Override
     public void show() {
         
@@ -88,9 +124,20 @@ public class PlayScreen implements Screen {
 
     public void update(float dt) {
         handleInput(dt);
+        handleSpawningItems();
 
         world.step(1 / 60f, 6, 2);
         player.update(dt);
+        for (Enemy e : worldCreator.getGoombas()) {
+            e.update(dt);
+            if (e.getX() < player.getX() + 224 / MarioBros.PPM) {
+                e.body.setActive(true);
+            }
+        }
+        for (Item item : items) {
+            item.update(dt);
+        }
+        hud.update(dt);
         gameCam.position.x = player.body.getPosition().x;
 
         gameCam.update();
@@ -111,6 +158,12 @@ public class PlayScreen implements Screen {
         game.batch.setProjectionMatrix(gameCam.combined);
         game.batch.begin();
         player.draw(game.batch);
+        for (Enemy e : worldCreator.getGoombas()) {
+            e.draw(game.batch);
+        }
+        for (Item item : items) {
+            item.draw(game.batch);
+        }
         game.batch.end();
 
         game.batch.setProjectionMatrix(hud.stage.getCamera().combined);
