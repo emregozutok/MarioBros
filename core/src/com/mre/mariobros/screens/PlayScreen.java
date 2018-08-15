@@ -18,8 +18,8 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mre.mariobros.MarioBros;
 import com.mre.mariobros.scenes.Hud;
-import com.mre.mariobros.sprites.enemies.Enemy;
 import com.mre.mariobros.sprites.Mario;
+import com.mre.mariobros.sprites.enemies.Enemy;
 import com.mre.mariobros.sprites.items.Item;
 import com.mre.mariobros.sprites.items.ItemDef;
 import com.mre.mariobros.sprites.items.Mushroom;
@@ -32,6 +32,7 @@ public class PlayScreen implements Screen {
 
     private final MarioBros game;
     private final TextureAtlas atlas;
+    public static boolean alreadyDestroyed = false;
 
     private final OrthographicCamera gameCam;
     private final Viewport gamePort;
@@ -44,6 +45,7 @@ public class PlayScreen implements Screen {
     private final World world;
     private final B2WorldCreator worldCreator;
     private final Box2DDebugRenderer b2dr;
+
     private final Mario player;
 
     private Music music;
@@ -105,20 +107,29 @@ public class PlayScreen implements Screen {
         return world;
     }
 
+    public Hud getHud() {
+        return hud;
+    }
+
     @Override
     public void show() {
-        
+
     }
 
     private void handleInput(float dt) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            player.body.applyLinearImpulse(new Vector2(0, 4f), player.body.getWorldCenter(), true);
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) && player.body.getLinearVelocity().x <= 2) {
-            player.body.applyLinearImpulse(new Vector2(0.1f, 0), player.body.getWorldCenter(), true);
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT) && player.body.getLinearVelocity().x >= -2) {
-            player.body.applyLinearImpulse(new Vector2(-0.1f, 0), player.body.getWorldCenter(), true);
+        if (player.currentState != Mario.State.DEAD) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+                player.body.applyLinearImpulse(new Vector2(0, 4f), player.body.getWorldCenter(), true);
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) && player.body.getLinearVelocity().x <= 2) {
+                player.body.applyLinearImpulse(new Vector2(0.1f, 0), player.body.getWorldCenter(), true);
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.LEFT) && player.body.getLinearVelocity().x >= -2) {
+                player.body.applyLinearImpulse(new Vector2(-0.1f, 0), player.body.getWorldCenter(), true);
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+                player.fire();
+            }
         }
     }
 
@@ -128,7 +139,7 @@ public class PlayScreen implements Screen {
 
         world.step(1 / 60f, 6, 2);
         player.update(dt);
-        for (Enemy e : worldCreator.getGoombas()) {
+        for (Enemy e : worldCreator.getEnemies()) {
             e.update(dt);
             if (e.getX() < player.getX() + 224 / MarioBros.PPM) {
                 e.body.setActive(true);
@@ -138,7 +149,9 @@ public class PlayScreen implements Screen {
             item.update(dt);
         }
         hud.update(dt);
-        gameCam.position.x = player.body.getPosition().x;
+        if (player.currentState != Mario.State.DEAD) {
+            gameCam.position.x = player.body.getPosition().x;
+        }
 
         gameCam.update();
         renderer.setView(gameCam);
@@ -148,7 +161,7 @@ public class PlayScreen implements Screen {
     public void render(float delta) {
         update(delta);
 
-        Gdx.gl.glClearColor(0, 0, 0, 0);
+        Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         renderer.render();
@@ -158,7 +171,7 @@ public class PlayScreen implements Screen {
         game.batch.setProjectionMatrix(gameCam.combined);
         game.batch.begin();
         player.draw(game.batch);
-        for (Enemy e : worldCreator.getGoombas()) {
+        for (Enemy e : worldCreator.getEnemies()) {
             e.draw(game.batch);
         }
         for (Item item : items) {
@@ -168,6 +181,15 @@ public class PlayScreen implements Screen {
 
         game.batch.setProjectionMatrix(hud.stage.getCamera().combined);
         hud.stage.draw();
+
+        if (gameOver()) {
+            game.setScreen(new GameOverScreen(game));
+            dispose();
+        }
+    }
+
+    public boolean gameOver() {
+        return (player.currentState == Mario.State.DEAD && player.getStateTimer() > 3);
     }
 
     @Override

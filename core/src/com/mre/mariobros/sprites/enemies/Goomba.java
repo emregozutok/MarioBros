@@ -1,5 +1,6 @@
 package com.mre.mariobros.sprites.enemies;
 
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -11,6 +12,7 @@ import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.utils.Array;
 import com.mre.mariobros.MarioBros;
 import com.mre.mariobros.screens.PlayScreen;
+import com.mre.mariobros.sprites.Mario;
 
 public class Goomba extends Enemy {
 
@@ -20,6 +22,7 @@ public class Goomba extends Enemy {
 
     private boolean setToDestroy;
     private boolean destroyed;
+    private float angle;
 
     public Goomba(PlayScreen screen, float x, float y) {
         super(screen, x, y);
@@ -27,12 +30,13 @@ public class Goomba extends Enemy {
         for (int i = 0; i < 2; i++) {
             frames.add(new TextureRegion(screen.getAtlas().findRegion("goomba"), i * 16, 0, 16, 16));
         }
-        walk = new Animation<TextureRegion>(0.1f, frames);
+        walk = new Animation<TextureRegion>(0.4f, frames);
         stateTime = 0;
         setBounds(getX(), getY(), 16 / MarioBros.PPM, 16 / MarioBros.PPM);
 
         setToDestroy = false;
         destroyed = false;
+        angle = 0;
     }
 
     public void update(float dt) {
@@ -60,7 +64,12 @@ public class Goomba extends Enemy {
         CircleShape shape = new CircleShape();
         shape.setRadius(6 / MarioBros.PPM);
         fdef.filter.categoryBits = MarioBros.ENEMY_BIT;
-        fdef.filter.maskBits = MarioBros.GROUND_BIT | MarioBros.BRICK_BIT | MarioBros.COIN_BIT | MarioBros.ENEMY_BIT | MarioBros.OBJECT_BIT | MarioBros.MARIO_BIT;
+        fdef.filter.maskBits = MarioBros.GROUND_BIT |
+                MarioBros.COIN_BIT |
+                MarioBros.BRICK_BIT |
+                MarioBros.ENEMY_BIT |
+                MarioBros.OBJECT_BIT |
+                MarioBros.MARIO_BIT;
         fdef.shape = shape;
         body.createFixture(fdef).setUserData(this);
 
@@ -85,7 +94,17 @@ public class Goomba extends Enemy {
     }
 
     @Override
-    public void hitOnHead() {
+    public void hitOnHead(Mario mario) {
         setToDestroy = true;
+        MarioBros.manager.get("audio/sounds/stomp.wav", Sound.class).play();
+    }
+
+    @Override
+    public void hitByEnemy(Enemy enemy) {
+        if (enemy instanceof Turtle && ((Turtle) enemy).currentState == Turtle.State.MOVING_SHELL) {
+            setToDestroy = true;
+        } else {
+            reverseVelocity(true, false);
+        }
     }
 }

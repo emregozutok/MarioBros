@@ -1,6 +1,5 @@
 package com.mre.mariobros.sprites.items;
 
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.CircleShape;
@@ -29,7 +28,11 @@ public class Mushroom extends Item {
         shape.setRadius(6 / MarioBros.PPM);
         fdef.shape = shape;
         fdef.filter.categoryBits = MarioBros.ITEM_BIT;
-        fdef.filter.maskBits = MarioBros.ITEM_BIT | MarioBros.GROUND_BIT | MarioBros.ENEMY_BIT | MarioBros.OBJECT_BIT | MarioBros.MARIO_BIT | MarioBros.BRICK_BIT | MarioBros.COIN_BIT;
+        fdef.filter.maskBits = MarioBros.MARIO_BIT |
+                MarioBros.OBJECT_BIT |
+                MarioBros.GROUND_BIT |
+                MarioBros.COIN_BIT |
+                MarioBros.BRICK_BIT;
         body.createFixture(fdef).setUserData(this);
     }
 
