@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Vector2;
@@ -149,12 +150,21 @@ public class PlayScreen implements Screen {
             item.update(dt);
         }
         hud.update(dt);
-        if (player.currentState != Mario.State.DEAD) {
-            gameCam.position.x = player.body.getPosition().x;
-        }
+        updateCameraX();
 
-        gameCam.update();
         renderer.setView(gameCam);
+    }
+
+    private void updateCameraX() {
+        if (player.currentState != Mario.State.DEAD) {
+            TiledMapTileLayer groundLayer = (TiledMapTileLayer) map.getLayers().get(0);
+            float levelWidth = groundLayer.getTileWidth() * groundLayer.getWidth();
+            float x = player.body.getPosition().x;
+            if (x > MarioBros.V_WIDTH * 0.5f / MarioBros.PPM && x < (levelWidth - MarioBros.V_WIDTH * 0.5f) / MarioBros.PPM) {
+                gameCam.position.x = x;
+            }
+            gameCam.update();
+        }
     }
 
     @Override
